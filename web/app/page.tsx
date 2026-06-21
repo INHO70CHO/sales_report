@@ -41,6 +41,12 @@ export default function HomePage() {
     [list, mk.key],
   );
 
+  // 전체 보관 현황 (보관조사일 = 전체 마지막 보관월)
+  const invDate = index?.invDate;
+  const invTotal = useMemo(() => list.reduce((s, d) => s + (d.inv || 0), 0), [list]);
+  const invHolders = useMemo(() => list.filter((d) => (d.invn || 0) > 0).length, [list]);
+  const invTop = useMemo(() => list.filter((d) => (d.inv || 0) > 0).sort((a, b) => (b.inv || 0) - (a.inv || 0)).slice(0, 8), [list]);
+
   return (
     <div className="screen home" data-screen-label="홈검색">
       <header className="home-head">
@@ -80,6 +86,38 @@ export default function HomePage() {
               <div className="recent-list">
                 {ranked.map((d) => <HomeCard key={d.code} d={d} startYM={period.s} endYM={period.e} vKey={mk.key} label={mk.label} onPick={onPick} />)}
               </div>
+            )}
+
+            {invHolders > 0 && (
+              <>
+                <div className="section-head"><h3>전체 보관 현황</h3><span className="sh-date">보관조사일 {invDate || "—"}</span></div>
+                <div className="card inv-dash">
+                  <div className="inv-summary">
+                    <div><span className="is-cap">총 보관금액</span><strong className="amber-txt">{F.wonShort(invTotal)}</strong></div>
+                    <div><span className="is-cap">보관 보유 유통점</span><strong>{invHolders}곳</strong></div>
+                    <div><span className="is-cap">전체 유통점</span><strong>{list.length}곳</strong></div>
+                  </div>
+                  <p className="note">보관조사일({invDate || "—"}) 스냅샷에 보관품이 있는 유통점만 집계 · 그 날짜에 보관 없는 곳은 제외.</p>
+                </div>
+                <div className="section-sub">보관금액 상위 유통점</div>
+                <div className="card pad0">
+                  <table className="dtable">
+                    <thead><tr><th>유통점</th><th className="num">보관 품목</th><th className="num">보관금액</th></tr></thead>
+                    <tbody>
+                      {invTop.map((d) => (
+                        <tr key={d.code} className="row-link" onClick={() => router.push(`/distributors/${d.code}?tab=inv`)}>
+                          <td>
+                            <div className="invm-name">{d.name}</div>
+                            <div className="invm-meta">{d.code} · {d.region} · {d.사원}</div>
+                          </td>
+                          <td className="num muted">{d.invn}종</td>
+                          <td className="num">{F.wonShort(d.inv || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </>
         )}

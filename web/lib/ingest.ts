@@ -114,20 +114,25 @@ export function ingestWorkbook(buf: ArrayBuffer): IngestResult {
 
   // 보관품현황 (헤더 2행째 → range:1)
   const invByCode = new Map<number, { ym: number; rows: InventoryRow[] }>();
-  const invMonByCode = new Map<number, Map<number, { amt: number; qty: number; cur: number }>>(); // code → (YYYYMM → {amt,qty,cur(당월신규)})
+  const invMonByCode = new Map<number, Map<number, { amt: number; qty: number; cur: number; snap: number }>>(); // code → (YYYYMM → {amt,qty,cur(당월신규),snap(최종 보관월 YYMMDD)})
   const invItemByCode = new Map<number, Map<number, InventoryRow[]>>(); // code → (YYYYMM → 품목들)
   let invCount = 0;
   const toMon = (by: number) => (2000 + Math.trunc(by / 10000)) * 100 + (Math.trunc(by / 100) % 100); // YYMMDD → YYYYMM
+  const yymmddToIso = (by: number) => { if (!by) return ""; const s = String(by).padStart(6, "0"); return `20${s.slice(0, 2)}-${s.slice(2, 4)}-${s.slice(4, 6)}`; }; // 보관월(YYMMDD) → 보관 조사일 ISO
+  const ordIso = (od: number) => { if (!od || od <= 0) return ""; if (od >= 19000000) { const s = String(od); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`; } return yymmddToIso(od); }; // 주문작성일 → 보관 잡은 날 ISO
+  let globalInvYm = 0; // 보관조사일 = 보관품현황 전체의 마지막 보관월(글로벌 최신)
+  const gmonMax = new Map<number, number>(); // mon(YYYYMM) → 그 달 글로벌 최종 보관월(조사일). 0원 채우기용
   if (invSheet) {
     const irows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[invSheet], { range: 1, defval: null });
-    // 1차: 거래처별 최신 보관월 + (거래처,월)별 최신 스냅샷 보관월
-    const latestYm = new Map<number, number>();
+    // 1차: (거래처,월)별 최신 스냅샷 보관월 + 전체 최신(보관조사일) + 월별 글로벌 조사일
     const monMax = new Map<string, number>();
     for (const r of irows) {
       const code = num(r["거래처"]); const ym = num(r["보관월"]);
       if (!code) continue;
-      latestYm.set(code, Math.max(latestYm.get(code) || 0, ym));
-      const k = code + "|" + toMon(ym);
+      globalInvYm = Math.max(globalInvYm, ym);
+      const mon = toMon(ym);
+      gmonMax.set(mon, Math.max(gmonMax.get(mon) || 0, ym));
+      const k = code + "|" + mon;
       monMax.set(k, Math.max(monMax.get(k) || 0, ym));
     }
     // 월별 보관금액: 각 (거래처,월) 최신 스냅샷 합계
@@ -138,8 +143,9 @@ export function ingestWorkbook(buf: ArrayBuffer): IngestResult {
       if (ym !== monMax.get(code + "|" + mon)) continue;
       let mm = invMonByCode.get(code);
       if (!mm) { mm = new Map(); invMonByCode.set(code, mm); }
-      const e = mm.get(mon) || { amt: 0, qty: 0, cur: 0 };
+      const e = mm.get(mon) || { amt: 0, qty: 0, cur: 0, snap: ym };
       e.amt += num(r["보관금액"]); e.qty += num(r["보관수량"]);
+      e.snap = ym; // 이 월의 최종 보관월(필터로 ym===monMax 보장) = 보관 조사일
       const od = num(r["주문작성일"]); const omon = od >= 19000000 ? Math.trunc(od / 100) : toMon(od);
       if (omon === mon) e.cur += num(r["보관금액"]); // 당월 신규 보관(주문작성일 년월=보관월)
       mm.set(mon, e);
@@ -151,18 +157,19 @@ export function ingestWorkbook(buf: ArrayBuffer): IngestResult {
       arr.push({
         품번: cleanPn(str(r["품번"])), 품명: str(r["품명"]), 대분류: catFix(cleanPn(str(r["품번"])), str(r["대분류"]) || "기타"),
         단가: num(r["단가"]), 입고: num(r["입고수량"]), 출고: num(r["출고수량"]),
-        보관수량: num(r["보관수량"]), 보관금액: num(r["보관금액"]),
+        보관수량: num(r["보관수량"]), 보관금액: num(r["보관금액"]), 보관일: ordIso(num(r["주문작성일"])),
       });
     }
+    // 현재 보관 현황 = 전체 마지막 보관월(보관조사일)에 잡힌 품목만. 그 날짜에 없는 거래처는 미표기.
     for (const r of irows) {
       const code = num(r["거래처"]); const ym = num(r["보관월"]);
-      if (!code || ym !== latestYm.get(code)) continue;
+      if (!code || ym !== globalInvYm) continue;
       let e = invByCode.get(code);
       if (!e) { e = { ym, rows: [] }; invByCode.set(code, e); }
       e.rows.push({
         품번: cleanPn(str(r["품번"])), 품명: str(r["품명"]), 대분류: catFix(cleanPn(str(r["품번"])), str(r["대분류"]) || "기타"),
         단가: num(r["단가"]), 입고: num(r["입고수량"]), 출고: num(r["출고수량"]),
-        보관수량: num(r["보관수량"]), 보관금액: num(r["보관금액"]),
+        보관수량: num(r["보관수량"]), 보관금액: num(r["보관금액"]), 보관일: ordIso(num(r["주문작성일"])),
       });
       invCount++;
     }
@@ -182,15 +189,21 @@ export function ingestWorkbook(buf: ArrayBuffer): IngestResult {
     const orders = Array.from(a.orders).sort();
     const inv = invByCode.get(code);
     const mm = invMonByCode.get(code);
+    // 전체 보관월에 대해 0원 채우기 (보관 없는 달도 보관월 표시·0원)
+    const GLOBAL_MONTHS = Array.from(gmonMax.keys()).sort((a, b) => a - b);
     const invMonthly = mm
-      ? Array.from(mm.entries()).map(([ym, v]) => ({ ym, amt: v.amt, qty: v.qty, cur: v.cur })).sort((x, y) => x.ym - y.ym)
+      ? GLOBAL_MONTHS.map((m) => {
+          const v = mm.get(m);
+          return v ? { ym: m, amt: v.amt, qty: v.qty, cur: v.cur, date: yymmddToIso(v.snap) }
+                   : { ym: m, amt: 0, qty: 0, cur: 0, date: yymmddToIso(gmonMax.get(m) || 0) };
+        })
       : [];
     const ii = invItemByCode.get(code);
     const invByMonth: Record<string, InventoryRow[]> = {};
     if (ii) for (const [mon, arr] of ii) invByMonth[String(mon)] = arr.slice().sort((x, y) => y.보관금액 - x.보관금액);
     dists.push({
       code, name: a.name, 본부: a.본부, 사업부: a.사업부, 팀: a.팀, 사원: a.사원,
-      region: a.사업부, asof, invYM: inv ? inv.ym : null,
+      region: a.사업부, asof, invYM: inv ? inv.ym : null, invDate: inv ? yymmddToIso(inv.ym) : null,
       monthly, items, orders, inventory: inv ? inv.rows : [], invMonthly, invByMonth,
     });
   }

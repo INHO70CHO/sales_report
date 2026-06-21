@@ -84,6 +84,22 @@ def ymd_to_iso(n: int) -> str:
     return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
 
 
+def yymmdd_to_iso(n: int) -> str:
+    """보관월(YYMMDD, 6자리) → ISO 날짜 'YYYY-MM-DD' (보관 조사일)"""
+    if not n:
+        return ""
+    s = f"{int(n):06d}"
+    return f"20{s[0:2]}-{s[2:4]}-{s[4:6]}"
+
+
+def ord_to_iso(n: int) -> str:
+    """주문작성일(보관 잡은 날) → ISO. 8자리(YYYYMMDD)/6자리(YYMMDD) 모두 처리"""
+    n = int(n)
+    if n <= 0:
+        return ""
+    return ymd_to_iso(n) if n >= 19000000 else yymmdd_to_iso(n)
+
+
 def days_between(iso_a: str, d_b: date) -> int:
     a = datetime.strptime(iso_a, "%Y-%m-%d").date()
     return (d_b - a).days
@@ -143,8 +159,15 @@ inv["omon"] = _om8.where(inv["주문작성일"] >= 19000000, _om6)
 _latest_in_mon = inv.groupby(["거래처", "mon"])["보관월"].transform("max")
 _snap = inv[inv["보관월"] == _latest_in_mon].copy()
 _snap["cur_amt"] = _snap["보관금액"].where(_snap["omon"] == _snap["mon"], 0)
-invmon = _snap.groupby(["거래처", "mon"]).agg(amt=("보관금액", "sum"), qty=("보관수량", "sum"), cur=("cur_amt", "sum")).reset_index()
+# snap = 그 (거래처,월)의 최종 보관월(YYMMDD) = 보관 조사일
+invmon = _snap.groupby(["거래처", "mon"]).agg(amt=("보관금액", "sum"), qty=("보관수량", "sum"), cur=("cur_amt", "sum"), snap=("보관월", "max")).reset_index()
 invmon_by_code = {code: g.sort_values("mon") for code, g in invmon.groupby("거래처")}
+
+# 전체 보관월(YYYYMM) 목록 + 각 월의 글로벌 조사일 — 보관 없는 달은 0원으로 채우기 위함
+_gmon_max = inv.groupby("mon")["보관월"].max()
+GLOBAL_MONTHS = sorted(int(m) for m in _gmon_max.index if int(m) > 0)
+GMON_DATE = {int(m): yymmdd_to_iso(int(d)) for m, d in _gmon_max.items()}
+print(f"전체 보관월: {len(GLOBAL_MONTHS)}개 ({GLOBAL_MONTHS[0]}~{GLOBAL_MONTHS[-1]})")
 
 # 월별 품목 내역 (거래처 → {YYYYMM: [품목들(보관금액 내림차순)]})
 invitem_by_code = {}
@@ -156,13 +179,17 @@ for _code, _g in _snap.groupby("거래처"):
             "품번": str(r.품번), "품명": str(r.품명), "대분류": str(r.대분류) or "기타",
             "단가": int(r.단가), "입고": int(r.입고수량), "출고": int(r.출고수량),
             "보관수량": int(r.보관수량), "보관금액": int(r.보관금액),
+            "보관일": ord_to_iso(int(r.주문작성일)),  # 보관 잡은 날(주문작성일)
         } for r in _gg.itertuples()]
     invitem_by_code[int(_code)] = _bym
 
-# 거래처별 최신 보관월(품목 스냅샷 — 참고용 유지)
-inv_latest_ym = inv.groupby("거래처")["보관월"].transform("max")
-inv_latest = inv[inv["보관월"] == inv_latest_ym]
+# 보관조사일 = 보관품현황 전체의 마지막 날짜(글로벌 최신 보관월). 그 날짜 스냅샷만 '현재 보관'으로 인정.
+# → 그 날짜에 보관품목이 없는 거래처는 inv_by_code에 없음(=현재 보관 현황 미표기).
+GLOBAL_INV_YM = int(inv["보관월"].max())
+print(f"보관조사일(전체 마지막 보관월): {yymmdd_to_iso(GLOBAL_INV_YM)}")
+inv_latest = inv[inv["보관월"] == GLOBAL_INV_YM]
 inv_by_code = {code: g for code, g in inv_latest.groupby("거래처")}
+print(f"  → 해당 보관조사일에 보관품 있는 거래처: {len(inv_by_code)}개")
 
 # ---- 거래처별 집계 ----
 index_rows = []
@@ -230,13 +257,20 @@ for code in codes:
                 "품번": str(r.품번), "품명": str(r.품명), "대분류": str(r.대분류) or "기타",
                 "단가": int(r.단가), "입고": int(r.입고수량), "출고": int(r.출고수량),
                 "보관수량": int(r.보관수량), "보관금액": int(r.보관금액),
+                "보관일": ord_to_iso(int(r.주문작성일)),  # 보관 잡은 날(주문작성일)
             })
     inv_ym = int(inv_by_code[code]["보관월"].iloc[0]) if code in inv_by_code else None
 
-    # 월별 보관금액 (YYYYMM)
+    # 월별 보관금액 (YYYYMM) — 전체 보관월에 대해, 보관 없는 달은 0원으로 채움
     inv_monthly = []
     if code in invmon_by_code:
-        inv_monthly = [{"ym": int(r.mon), "amt": int(r.amt), "qty": int(r.qty), "cur": int(r.cur)} for r in invmon_by_code[code].itertuples()]
+        cur_map = {int(r.mon): r for r in invmon_by_code[code].itertuples()}
+        for gm in GLOBAL_MONTHS:
+            if gm in cur_map:
+                r = cur_map[gm]
+                inv_monthly.append({"ym": gm, "amt": int(r.amt), "qty": int(r.qty), "cur": int(r.cur), "date": yymmdd_to_iso(int(r.snap))})
+            else:
+                inv_monthly.append({"ym": gm, "amt": 0, "qty": 0, "cur": 0, "date": GMON_DATE.get(gm, "")})
 
     dist = {
         "code": int(code),
@@ -245,6 +279,7 @@ for code in codes:
         "region": str(m.bu),  # 지역 컬럼 없음 → 사업부로 대체
         "asof": ASOF.isoformat(),
         "invYM": inv_ym,
+        "invDate": yymmdd_to_iso(inv_ym) if inv_ym else None,
         "monthly": monthly,
         "items": items,
         "orders": orders,
@@ -261,6 +296,7 @@ for code in codes:
     s6du = sum(x["du"] for x in last6)
     s6np = sum(x["np"] for x in last6)
     spark = [x["sales"] for x in last6]
+    inv_amt = sum(x["보관금액"] for x in inventory)  # 보관조사일 기준 보관금액
     index_rows.append({
         "code": int(code), "name": str(m.name),
         "본부": str(m.bon), "사업부": str(m.bu), "팀": str(m.team), "사원": str(m.rep),
@@ -269,12 +305,14 @@ for code in codes:
         "days": days_since, "gap": avg_gap,
         "lvl": order_status(days_since, avg_gap),
         "spark": spark,
+        "inv": int(inv_amt), "invn": len(inventory),  # 보관조사일 보관금액·품목수
     })
 
 index_rows.sort(key=lambda x: x["sales6"], reverse=True)
 index = {
     "ymMin": 202301, "ymMax": 202605, "asof": ASOF.isoformat(),
     "count": len(index_rows),
+    "invDate": yymmdd_to_iso(GLOBAL_INV_YM),  # 전체 보관조사일(최신 보관월)
     "distributors": index_rows,
 }
 with open(os.path.join(OUT_DIR, "index.json"), "w", encoding="utf-8") as f:

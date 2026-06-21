@@ -181,7 +181,7 @@ export function TabCycle({ agg }: { agg: Aggregate }) {
   );
 }
 
-/* 4. 보관품 — 월별 보관금액 (월 선택 시 그 달 품목 상세로) */
+/* 4. 보관품 — 월별 보관금액 현황(추이) + 월 선택 시 그 달 품목 상세(마지막 보관월에서만 보관 매출일) */
 export function TabInventory({ invMonthly, startYM, endYM, onOpenInvMonth }: {
   invMonthly: InvMonth[]; startYM: number; endYM: number; onOpenInvMonth: (ym: number) => void;
 }) {
@@ -203,7 +203,7 @@ export function TabInventory({ invMonthly, startYM, endYM, onOpenInvMonth }: {
           <tbody>
             {rows.slice().reverse().map((r) => (
               <tr key={r.ym} className="row-link" onClick={() => onOpenInvMonth(r.ym)}>
-                <td>{ymLabel(r.ym)}</td>
+                <td>{ymLabel(r.ym)}{r.date ? <span className="inv-date">조사 {r.date}</span> : null}</td>
                 <td className="num">{F.wonShort(r.amt)}</td>
                 <td className="num amber-txt">{F.wonShort(r.cur || 0)}</td>
                 <td className="num muted">{F.num(r.qty)}개</td>
@@ -213,7 +213,7 @@ export function TabInventory({ invMonthly, startYM, endYM, onOpenInvMonth }: {
           </tbody>
         </table>
       </div>
-      <p className="note">보관월 말 스냅샷 기준 · <b>당월 신규</b>=주문작성일 년월이 해당 보관월인 금액 · 월 선택 시 품목별 상세. 원가성 정보는 표시되지 않습니다.</p>
+      <p className="note">각 월의 <b>최종 보관월(조사일)</b> 스냅샷 기준 · <b>당월 신규</b>=주문작성일 년월이 해당 보관월인 금액 · 월 선택 시 품목별 상세(마지막 보관월은 품목별 보관 매출일 표기). 원가성 정보는 표시되지 않습니다.</p>
     </div>
   );
 }

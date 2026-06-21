@@ -25,6 +25,8 @@ export interface IndexEntry {
   gap: number | null;  // 평균 발주 간격
   lvl: "ok" | "watch" | "warn" | "none";
   spark: number[];  // 최근 6개월 월별 판매액
+  inv?: number;     // 보관조사일 기준 보관금액
+  invn?: number;    // 보관조사일 기준 보관 품목수
 }
 
 export interface IndexFile {
@@ -32,14 +34,15 @@ export interface IndexFile {
   ymMax: number;
   asof: string;
   count: number;
+  invDate?: string; // 전체 보관조사일(최신 보관월 ISO)
   distributors: IndexEntry[];
 }
 
 export interface MonthlyRow { ym: number; sales: number; factory: number; qty: number; du: number; np: number; duf?: number; npf?: number; }
 export interface ItemMonthly { ym: number; amount: number; qty: number; factory?: number; du?: number; np?: number; duf?: number; npf?: number; }
 export interface ItemRow { 품번: string; 품명: string; 대분류: string; 시리즈: string; 단가: number; monthly: ItemMonthly[]; orders?: string[]; }
-export interface InventoryRow { 품번: string; 품명: string; 대분류: string; 단가: number; 입고: number; 출고: number; 보관수량: number; 보관금액: number; }
-export interface InvMonth { ym: number; amt: number; qty: number; cur?: number; }
+export interface InventoryRow { 품번: string; 품명: string; 대분류: string; 단가: number; 입고: number; 출고: number; 보관수량: number; 보관금액: number; 보관일?: string; } // 보관일 = 그 품목의 최신 보관월(ISO, carry-forward)
+export interface InvMonth { ym: number; amt: number; qty: number; cur?: number; date?: string; } // date = 보관 조사일(ISO, 그 달 최종 보관월)
 
 export interface DistData {
   code: number;
@@ -51,6 +54,7 @@ export interface DistData {
   region: string;
   asof: string;
   invYM: number | null;
+  invDate?: string | null; // 최종 보관월(invYM) → 보관 조사일 ISO
   monthly: MonthlyRow[];
   items: ItemRow[];
   orders: string[]; // ISO "YYYY-MM-DD"

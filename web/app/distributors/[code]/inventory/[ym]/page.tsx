@@ -33,6 +33,9 @@ export default function InventoryMonthPage() {
   const items = (dist.invByMonth?.[String(ym)] || []).slice().sort((a, b) => b.보관금액 - a.보관금액);
   const total = items.reduce((a, r) => a + r.보관금액, 0);
   const totalQty = items.reduce((a, r) => a + r.보관수량, 0);
+  const surveyDate = (dist.invMonthly || []).find((m) => m.ym === ym)?.date || ""; // 보관 조사일(그 달 최종 보관월)
+  const lastYm = dist.invDate ? Number(dist.invDate.slice(0, 4)) * 100 + Number(dist.invDate.slice(5, 7)) : 0;
+  const isLast = ym === lastYm; // 마지막 보관월에서만 품목별 보관 매출일 표기
 
   return (
     <div className="screen detail" data-screen-label="보관품월상세">
@@ -41,7 +44,7 @@ export default function InventoryMonthPage() {
           <button className="iconbtn" onClick={() => router.back()} aria-label="뒤로"><IconBack /></button>
           <div className="dhead-title">
             <h1>보관품 {ymLabel(ym)}</h1>
-            <span className="dhead-sub">{dist.name} · {dist.code} · 보관금액순</span>
+            <span className="dhead-sub">{dist.name} · {dist.code}{surveyDate ? ` · 보관 조사일 ${surveyDate}` : ""}</span>
           </div>
           <span style={{ width: 36 }} />
         </div>
@@ -52,13 +55,14 @@ export default function InventoryMonthPage() {
         ) : (
           <>
             <div className="inv-summary">
+              <div><span className="is-cap">보관 조사일</span><strong>{surveyDate || "—"}</strong></div>
               <div><span className="is-cap">보관 품목</span><strong>{items.length}종</strong></div>
               <div><span className="is-cap">총 보관수량</span><strong>{F.num(totalQty)}개</strong></div>
               <div><span className="is-cap">총 보관금액</span><strong className="amber-txt">{F.wonShort(total)}</strong></div>
             </div>
             <div className="card pad0">
               <table className="dtable">
-                <thead><tr><th>순위</th><th>품목</th><th className="num">보관수량</th><th className="num">보관금액</th></tr></thead>
+                <thead><tr><th>순위</th><th>품번</th>{isLast && <th>보관매출일</th>}<th className="num">보관수량</th><th className="num">보관금액</th></tr></thead>
                 <tbody>
                   {items.map((r, i) => (
                     <tr key={r.품번 + i}>
@@ -67,6 +71,7 @@ export default function InventoryMonthPage() {
                         <div className="invm-name">{r.품번}</div>
                         <div className="invm-meta"><span className="tag">{r.대분류}</span>{r.품명}</div>
                       </td>
+                      {isLast && <td className="muted">{r.보관일 || "—"}</td>}
                       <td className="num">{F.num(r.보관수량)}개</td>
                       <td className="num">{F.won(r.보관금액)}</td>
                     </tr>
@@ -74,7 +79,7 @@ export default function InventoryMonthPage() {
                 </tbody>
               </table>
             </div>
-            <p className="note">{ymLabel(ym)} 말 스냅샷 기준 · 보관금액 내림차순.</p>
+            <p className="note">{surveyDate ? `${surveyDate} 보관 조사 기준` : `${ymLabel(ym)} 말 스냅샷 기준`}{isLast ? " · 보관매출일=품목별 주문작성일" : ""} · 보관금액 내림차순.</p>
           </>
         )}
       </div>

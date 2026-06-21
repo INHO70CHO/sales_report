@@ -91,9 +91,9 @@ export function mergeDist(base: DistData | null, ov: DistData): DistData {
   const orders = Array.from(new Set([...base.orders, ...ov.orders])).sort();
 
   // 보관품: 오버레이 보관월이 더 최신이면 교체
-  let inventory = base.inventory, invYM = base.invYM;
+  let inventory = base.inventory, invYM = base.invYM, invDate = base.invDate;
   if (ov.invYM != null && (base.invYM == null || ov.invYM >= base.invYM)) {
-    inventory = ov.inventory; invYM = ov.invYM;
+    inventory = ov.inventory; invYM = ov.invYM; invDate = ov.invDate;
   }
 
   // 월별 보관금액: ym 단위 upsert
@@ -109,7 +109,7 @@ export function mergeDist(base: DistData | null, ov: DistData): DistData {
     본부: ov.본부 || base.본부, 사업부: ov.사업부 || base.사업부, 팀: ov.팀 || base.팀, 사원: ov.사원 || base.사원,
     region: ov.region || base.region,
     asof: ov.asof > base.asof ? ov.asof : base.asof,
-    invYM, monthly, items, orders, inventory, invMonthly, invByMonth,
+    invYM, invDate, monthly, items, orders, inventory, invMonthly, invByMonth,
   };
 }
 
