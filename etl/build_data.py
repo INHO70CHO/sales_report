@@ -309,14 +309,49 @@ for code in codes:
     })
 
 index_rows.sort(key=lambda x: x["sales6"], reverse=True)
+
+# 데이터 기간(월 범위): 판매(출고월)·보관(보관월-월) 통틀어 최소~최대 → 자동 산출
+_sale_ymmax = int(sales["출고월"].max()); _sale_ymmin = int(sales["출고월"].min())
+_inv_ymmax = GLOBAL_MONTHS[-1] if GLOBAL_MONTHS else _sale_ymmax
+_inv_ymmin = GLOBAL_MONTHS[0] if GLOBAL_MONTHS else _sale_ymmin
+YM_MAX_OUT = max(_sale_ymmax, _inv_ymmax)
+YM_MIN_OUT = min(_sale_ymmin, _inv_ymmin)
+print(f"데이터 월범위: {YM_MIN_OUT} ~ {YM_MAX_OUT} (판매 최대 {_sale_ymmax}, 보관 최대 {_inv_ymmax})")
+
 index = {
-    "ymMin": 202301, "ymMax": 202605, "asof": ASOF.isoformat(),
+    "ymMin": YM_MIN_OUT, "ymMax": YM_MAX_OUT, "asof": ASOF.isoformat(),
     "count": len(index_rows),
     "invDate": yymmdd_to_iso(GLOBAL_INV_YM),  # 전체 보관조사일(최신 보관월)
     "distributors": index_rows,
 }
 with open(os.path.join(OUT_DIR, "index.json"), "w", encoding="utf-8") as f:
     json.dump(index, f, ensure_ascii=False, separators=(",", ":"))
+
+# months.ts 자동 생성 (YM_MIN/YM_MAX를 데이터에 맞춰 갱신 — 매달 수동 수정 불필요)
+_months_ts = os.path.join(os.path.dirname(OUT_DIR), "..", "lib", "months.ts")
+_months_ts = os.path.normpath(_months_ts)
+with open(_months_ts, "w", encoding="utf-8") as f:
+    f.write(
+        "/* 데이터 기간 상수 — ETL(build_data.py)이 자동 생성. 수동 편집 금지 */\n"
+        f"export const YM_MIN = {YM_MIN_OUT};\n"
+        f"export const YM_MAX = {YM_MAX_OUT};\n\n"
+        "export const MONTHS: number[] = (() => {\n"
+        "  const a: number[] = [];\n"
+        "  const y0 = Math.floor(YM_MIN / 100), y1 = Math.floor(YM_MAX / 100);\n"
+        "  for (let y = y0; y <= y1; y++) {\n"
+        "    for (let m = 1; m <= 12; m++) {\n"
+        "      const ym = y * 100 + m;\n"
+        "      if (ym < YM_MIN || ym > YM_MAX) continue;\n"
+        "      a.push(ym);\n"
+        "    }\n"
+        "  }\n"
+        "  return a;\n"
+        "})();\n\n"
+        "export function ymList(startYM: number, endYM: number): number[] {\n"
+        "  return MONTHS.filter((m) => m >= startYM && m <= endYM);\n"
+        "}\n"
+    )
+print(f"months.ts 갱신: YM_MIN={YM_MIN_OUT}, YM_MAX={YM_MAX_OUT}")
 
 # 크기 리포트
 total = 0
