@@ -3,7 +3,15 @@
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { cx } from "@/lib/util";
+import { BASE_PATH } from "@/lib/base-path";
 import { IconSearch, IconOrg, IconUser, Logo } from "@/components/icons";
+
+/* usePathname()은 basePath(GitHub Pages 서브경로)와 trailingSlash(/login/)를 포함해 반환하므로 비교 전에 정규화 */
+function stripBasePath(p: string): string {
+  let out = BASE_PATH && p.startsWith(BASE_PATH) ? p.slice(BASE_PATH.length) || "/" : p;
+  if (out.length > 1 && out.endsWith("/")) out = out.slice(0, -1);
+  return out;
+}
 
 const NAV_ITEMS = [
   { id: "home", label: "검색", href: "/", icon: IconSearch },
@@ -27,7 +35,7 @@ function activeOf(pathname: string): string | null {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname() || "/";
+  const pathname = stripBasePath(usePathname() || "/");
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 

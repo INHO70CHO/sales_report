@@ -1,7 +1,7 @@
 "use client";
 /* 유통점 상세 ⭐ — 기간 선택기 + KPI 4 + 탭 5 (핵심 화면). GitHub Pages 정적 export 대응으로 code는 쿼리 파라미터(?code=)로 전달 */
 import React, { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cx, orderStatus, avgIntervalDays } from "@/lib/util";
 import { aggregate, cachedIndex } from "@/lib/data";
 import { useDist } from "@/lib/hooks";
@@ -26,7 +26,6 @@ export default function DistributorDetailPage() {
 
 function DetailInner() {
   const router = useRouter();
-  const pathname = usePathname();
   const sp = useSearchParams();
 
   const code = Number(sp.get("code"));
@@ -46,7 +45,7 @@ function DetailInner() {
     if (next.s != null) p.set("s", String(next.s));
     if (next.e != null) p.set("e", String(next.e));
     if (next.tab != null) p.set("tab", next.tab);
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+    router.replace(`/distributors?${p.toString()}`, { scroll: false });
   }
 
   // 로딩 중 헤더 제목: 인덱스 캐시에서 이름 미리 표시
