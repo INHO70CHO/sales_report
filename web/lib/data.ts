@@ -83,6 +83,7 @@ export interface Aggregate {
 
 /* ---------- fetch + 캐시 (+ 업로드 오버레이 병합) ---------- */
 import { getOverlay, mergeDist, OverlayState } from "./overlay";
+import { BASE_PATH } from "./base-path";
 
 let _baseIndex: IndexFile | null = null;
 let _mergedIndex: IndexFile | null = null;
@@ -97,7 +98,7 @@ async function ensureOverlay(): Promise<OverlayState | null> {
 
 async function fetchBaseIndex(): Promise<IndexFile> {
   if (_baseIndex) return _baseIndex;
-  const r = await fetch("/data/index.json");
+  const r = await fetch(`${BASE_PATH}/data/index.json`);
   if (!r.ok) throw new Error("index load failed");
   _baseIndex = (await r.json()) as IndexFile;
   return _baseIndex;
@@ -120,7 +121,7 @@ export function cachedIndex(): IndexFile | null {
 }
 
 async function fetchBaseDist(code: number): Promise<DistData | null> {
-  const r = await fetch(`/data/dist/${code}.json`);
+  const r = await fetch(`${BASE_PATH}/data/dist/${code}.json`);
   if (!r.ok) return null;
   return (await r.json()) as DistData;
 }

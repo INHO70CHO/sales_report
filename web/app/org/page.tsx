@@ -39,7 +39,7 @@ export default function OrgPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  function onPick(d: IndexEntry) { router.push(`/distributors/${d.code}`); }
+  function onPick(d: IndexEntry) { router.push(`/distributors?code=${d.code}`); }
 
   return (
     <div className="screen org" data-screen-label="조직">

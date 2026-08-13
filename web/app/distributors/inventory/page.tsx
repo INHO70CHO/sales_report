@@ -1,17 +1,25 @@
 "use client";
-/* 보관품 월별 상세 — 선택한 보관월의 품목을 보관금액 내림차순으로 */
-import React from "react";
-import { useParams, useRouter } from "next/navigation";
+/* 보관품 월별 상세 — 선택한 보관월의 품목을 보관금액 내림차순으로. GitHub Pages 정적 export 대응으로 code/ym은 쿼리 파라미터로 전달 */
+import React, { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDist } from "@/lib/hooks";
 import { F, ymLabel } from "@/lib/format";
 import { Skeleton } from "@/components/ui";
 import { IconBack } from "@/components/icons";
 
 export default function InventoryMonthPage() {
-  const params = useParams();
+  return (
+    <Suspense fallback={<div className="screen detail" />}>
+      <InventoryInner />
+    </Suspense>
+  );
+}
+
+function InventoryInner() {
   const router = useRouter();
-  const code = Number(params.code);
-  const ym = Number(params.ym);
+  const sp = useSearchParams();
+  const code = Number(sp.get("code"));
+  const ym = Number(sp.get("ym"));
   const { dist, loading, error } = useDist(code);
 
   if (loading) {

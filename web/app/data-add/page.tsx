@@ -9,6 +9,7 @@ import { ymLabel } from "@/lib/format";
 import { ingestWorkbook, IngestResult } from "@/lib/ingest";
 import { getOverlay, setOverlay, clearOverlay, mergeDist, buildIndexEntry, OverlayState } from "@/lib/overlay";
 import { IconBack, IconUpload, IconLock } from "@/components/icons";
+import { BASE_PATH } from "@/lib/base-path";
 
 const ADMIN_PW = "2003@#";
 
@@ -104,7 +105,7 @@ function Uploader() {
       for (const ov of result.dists) {
         dists[ov.code] = ov;
         let base: DistData | null = null;
-        try { const r = await fetch(`/data/dist/${ov.code}.json`); if (r.ok) base = await r.json(); } catch {}
+        try { const r = await fetch(`${BASE_PATH}/data/dist/${ov.code}.json`); if (r.ok) base = await r.json(); } catch {}
         entries.push(buildIndexEntry(mergeDist(base, ov)));
       }
       const state: OverlayState = {

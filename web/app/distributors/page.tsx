@@ -1,7 +1,7 @@
 "use client";
-/* 유통점 상세 ⭐ — 기간 선택기 + KPI 4 + 탭 5 (핵심 화면) */
+/* 유통점 상세 ⭐ — 기간 선택기 + KPI 4 + 탭 5 (핵심 화면). GitHub Pages 정적 export 대응으로 code는 쿼리 파라미터(?code=)로 전달 */
 import React, { Suspense, useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cx, orderStatus, avgIntervalDays } from "@/lib/util";
 import { aggregate, cachedIndex } from "@/lib/data";
 import { useDist } from "@/lib/hooks";
@@ -25,12 +25,11 @@ export default function DistributorDetailPage() {
 }
 
 function DetailInner() {
-  const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 
-  const code = Number(params.code);
+  const code = Number(sp.get("code"));
   const startYM = Number(sp.get("s")) || DEFAULT_S;
   const endYM = Number(sp.get("e")) || DEFAULT_E;
   const tab = sp.get("tab") || "sales";
@@ -56,7 +55,7 @@ function DetailInner() {
   if (error) {
     return (
       <div className="screen detail">
-        <header className="dheader"><div className="dhead-top"><button className="iconbtn" onClick={() => router.back()} aria-label="뒤로"><IconBack /></button><div className="dhead-title"><h1>거래처를 찾을 수 없습니다</h1><span className="dhead-sub">코드 {String(params.code)}</span></div></div></header>
+        <header className="dheader"><div className="dhead-top"><button className="iconbtn" onClick={() => router.back()} aria-label="뒤로"><IconBack /></button><div className="dhead-title"><h1>거래처를 찾을 수 없습니다</h1><span className="dhead-sub">코드 {String(sp.get("code"))}</span></div></div></header>
       </div>
     );
   }
@@ -102,10 +101,10 @@ function DetailInner() {
   ];
 
   function openItem(품번: string) {
-    router.push(`/distributors/${code}/items/${encodeURIComponent(품번)}?s=${startYM}&e=${endYM}`);
+    router.push(`/distributors/items?code=${code}&sku=${encodeURIComponent(품번)}&s=${startYM}&e=${endYM}`);
   }
   function openInvMonth(ym: number) {
-    router.push(`/distributors/${code}/inventory/${ym}`);
+    router.push(`/distributors/inventory?code=${code}&ym=${ym}`);
   }
 
   return (

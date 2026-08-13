@@ -30,7 +30,7 @@ export default function HomePage() {
 
   useEffect(() => { setRecentCodes(getRecent()); }, []);
 
-  function onPick(d: IndexEntry) { router.push(`/distributors/${d.code}`); }
+  function onPick(d: IndexEntry) { router.push(`/distributors?code=${d.code}`); }
 
   const list = index?.distributors ?? [];
   const byCode = useMemo(() => new Map(list.map((d) => [d.code, d])), [list]);
@@ -105,7 +105,7 @@ export default function HomePage() {
                     <thead><tr><th>유통점</th><th className="num">보관 품목</th><th className="num">보관금액</th></tr></thead>
                     <tbody>
                       {invTop.map((d) => (
-                        <tr key={d.code} className="row-link" onClick={() => router.push(`/distributors/${d.code}?tab=inv`)}>
+                        <tr key={d.code} className="row-link" onClick={() => router.push(`/distributors?code=${d.code}&tab=inv`)}>
                           <td>
                             <div className="invm-name">{d.name}</div>
                             <div className="invm-meta">{d.code} · {d.region} · {d.사원}</div>

@@ -1,7 +1,7 @@
 "use client";
-/* 품목 드릴다운 — 품목 월별 판매 추이 + 월별 수량·금액 테이블 */
+/* 품목 드릴다운 — 품목 월별 판매 추이 + 월별 수량·금액 테이블. GitHub Pages 정적 export 대응으로 code/sku는 쿼리 파라미터로 전달 */
 import React, { Suspense, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDist } from "@/lib/hooks";
 import { cx, orderStatus } from "@/lib/util";
 import { F, ymLabel } from "@/lib/format";
@@ -22,12 +22,11 @@ export default function ItemDrilldownPage() {
 }
 
 function ItemInner() {
-  const params = useParams();
   const router = useRouter();
   const sp = useSearchParams();
 
-  const code = Number(params.code);
-  const sku = decodeURIComponent(String(params.sku));
+  const code = Number(sp.get("code"));
+  const sku = decodeURIComponent(sp.get("sku") || "");
   const startYM = Number(sp.get("s")) || DEFAULT_S;
   const endYM = Number(sp.get("e")) || DEFAULT_E;
 

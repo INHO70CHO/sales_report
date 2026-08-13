@@ -1,12 +1,14 @@
 /* 사용자 로그인 — 사용자 명단(users.json) + 비밀번호(기본 1111, 변경분은 localStorage)
    ※ 정적 앱이라 비밀번호는 브라우저 localStorage 보관(약한 보안, 사내 MVP). 강한 인증은 Supabase로 승격 권장. */
+import { BASE_PATH } from "./base-path";
+
 const DEFAULT_PW = "1111";
 
 let _users: string[] | null = null;
 export async function fetchUsers(): Promise<string[]> {
   if (_users) return _users;
   try {
-    const r = await fetch("/data/users.json");
+    const r = await fetch(`${BASE_PATH}/data/users.json`);
     _users = r.ok ? ((await r.json()).users || []) : [];
   } catch {
     _users = [];
