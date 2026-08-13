@@ -1,6 +1,6 @@
 /* 데이터 기간 상수 — ETL(build_data.py)이 자동 생성. 수동 편집 금지 */
 export const YM_MIN = 202301;
-export const YM_MAX = 202606;
+export const YM_MAX = 202607;
 
 export const MONTHS: number[] = (() => {
   const a: number[] = [];

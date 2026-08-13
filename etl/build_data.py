@@ -23,7 +23,7 @@ BIDET_BASES = {"RWC3500", "RWC2400", "RWC2500", "RWC2600", "RWC3600", "RWC7000",
 def is_bidet(품번):
     return str(품번).split("-")[0].upper() in BIDET_BASES
 
-BASE = r"C:\Users\toono\do-better-workspace-v2\100-practice skill"
+BASE = r"F:\claude\do-better-workspace-v2\100-practice skill"
 SRC = os.path.join(BASE, "영업실적-PRD용(260608).xlsx")
 OUT_DIR = os.path.join(BASE, "유통점-현황조회-webapp", "web", "public", "data")
 DIST_DIR = os.path.join(OUT_DIR, "dist")
